@@ -110,14 +110,21 @@ git tag v0.2.0 && git push origin v0.2.0
 The tag's run drafts a GitHub release with every installer and a `SHA256SUMS.txt`. Check it,
 then publish it.
 
-Signing turns on per platform once the repository has its secrets (Settings → Secrets and
-variables → Actions):
+Signing turns on per platform once its secrets are in the repository's **`release`
+environment** (Settings → Environments). Only `v*` tags can use that environment, so builds of
+branches and pull requests never see the keys. Every action in the workflow is pinned to a
+commit.
 
 | Platform | Secrets | Where they come from |
 | --- | --- | --- |
-| macOS signing | `APPLE_CERTIFICATE` (the `.p12`, base64), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` | A "Developer ID Application" certificate from the Apple Developer Program, exported from Keychain Access. `base64 -i cert.p12 \| pbcopy` |
+| macOS signing | `APPLE_CERTIFICATE` (the `.p12`, base64), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` | A "Developer ID Application" certificate from the Apple Developer Program, exported with its private key from Keychain Access |
 | macOS notarization | `APPLE_API_ISSUER`, `APPLE_API_KEY` (the key ID), `APPLE_API_KEY_P8` (the `.p8` file's text) | App Store Connect → Users and Access → Integrations → Team Keys, with the Developer role |
 | Windows | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, plus the variables `ARTIFACT_SIGNING_ENDPOINT`, `ARTIFACT_SIGNING_ACCOUNT` and `ARTIFACT_SIGNING_PROFILE` | An Azure Artifact Signing account and certificate profile, and an app registration with the "Artifact Signing Certificate Profile Signer" role |
+
+For Apple's, run `scripts/set-apple-secrets.sh <certificate.p12> <AuthKey_….p8>` yourself.
+It checks the certificate, its password and the API key with Apple, then stores all six
+without printing them or putting them on a command line. A tag build with them signs the app
+and the disk image, notarizes and staples both, and fails if Gatekeeper wouldn't accept them.
 
 Without them every build still succeeds: macOS is signed ad hoc (Gatekeeper then blocks a
 downloaded copy until it is allowed in System Settings → Privacy & Security) and Windows is

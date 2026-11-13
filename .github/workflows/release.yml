@@ -5,7 +5,9 @@
 # - A tag like v0.2.0: the same, then a draft GitHub release with every installer attached.
 #   Check it and press Publish.
 #
-# Signing turns on with the repository's secrets, each platform on its own:
+# Signing uses secrets in the "release" environment (Settings → Environments), which only
+# v* tags may use: pushes to branches and pull requests never see them. Each platform turns on
+# by itself once its secrets are there; scripts/set-apple-secrets.sh stores Apple's.
 #   macOS    APPLE_CERTIFICATE (base64 of the Developer ID Application .p12),
 #            APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: …"),
 #            and for notarization APPLE_API_ISSUER, APPLE_API_KEY (the key id) and
@@ -14,6 +16,9 @@
 #            ARTIFACT_SIGNING_ENDPOINT, ARTIFACT_SIGNING_ACCOUNT and ARTIFACT_SIGNING_PROFILE
 #            (Azure Artifact Signing, formerly Trusted Signing).
 # Without them the builds still succeed: macOS signs ad hoc and Windows is unsigned.
+#
+# Every action is pinned to a commit, since a tag can be moved to other code and these steps
+# run beside the signing keys. Update them deliberately, comment and hash together.
 name: Release
 
 on:
@@ -23,8 +28,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only by default; only the job that drafts the release may write.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -37,6 +43,8 @@ jobs:
   package:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # The signing secrets, for v* tags only. Elsewhere no environment, and no secrets.
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,17 +57,22 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
           targets: ${{ matrix.targets }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # A new key starts a new cache. "packager-source": the caches before it held a
           # cargo-packager downloaded from QuickInstall, which `cargo install` would keep.
           key: packager-source
+          # Release builds read main's cache but never write one.
+          save-if: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
       # Built from its source on crates.io, at a fixed version: it runs beside the signing
       # secrets, so no prebuilt binary from a third party. rust-cache keeps ~/.cargo/bin, so
@@ -81,7 +94,7 @@ jobs:
 
       - name: Sign the Windows binary
         if: runner.os == 'Windows' && vars.ARTIFACT_SIGNING_ACCOUNT != ''
-        uses: azure/artifact-signing-action@v2
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -117,9 +130,39 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: scripts/package.sh --package-only
 
+      # The packager notarizes and staples the app; the .dmg around it needs its own ticket,
+      # or Gatekeeper still stops the download ("Apple could not verify …").
+      - name: Notarize the disk image
+        if: runner.os == 'macOS' && env.APPLE_API_KEY_PATH != ''
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          for dmg in dist/*.dmg; do
+            xcrun notarytool submit "$dmg" --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait --timeout 30m
+            xcrun stapler staple "$dmg"
+          done
+
+      # What a downloaded copy meets: a Developer ID signature and a stapled ticket. A tag with
+      # signing set up fails here rather than release something Gatekeeper would block.
+      - name: Check the macOS signature
+        if: runner.os == 'macOS' && env.APPLE_API_KEY_PATH != ''
+        run: |
+          codesign --verify --deep --strict --verbose=2 dist/Turbodoc.app
+          xcrun stapler validate dist/Turbodoc.app
+          for dmg in dist/*.dmg; do
+            xcrun stapler validate "$dmg"
+            spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          done
+          spctl --assess --type execute --verbose=2 dist/Turbodoc.app
+
+      - name: Unsigned macOS release
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && env.APPLE_API_KEY_PATH == ''
+        run: echo "::warning::This release's macOS build is signed ad hoc and not notarized; Gatekeeper will block downloads. See scripts/set-apple-secrets.sh."
+
       - name: Sign the Windows installers
         if: runner.os == 'Windows' && vars.ARTIFACT_SIGNING_ACCOUNT != ''
-        uses: azure/artifact-signing-action@v2
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -133,7 +176,7 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: turbodoc-${{ runner.os }}
           retention-days: 7
@@ -150,8 +193,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: package
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
           merge-multiple: true
@@ -160,7 +205,7 @@ jobs:
         working-directory: dist
         run: sha256sum * > SHA256SUMS.txt
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           draft: true
           generate_release_notes: true
