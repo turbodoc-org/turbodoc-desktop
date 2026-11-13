@@ -13,6 +13,20 @@ Supabase account.
 | ![Snippets](docs/snippets.png) | ![Diagrams](docs/diagrams.png) |
 | ![Command palette](docs/palette.png) | ![Light](docs/light.png) |
 
+## Download
+
+Get the latest version from the **[Releases page](https://github.com/turbodoc-org/turbodoc-desktop/releases/latest)**:
+
+| OS | File |
+| --- | --- |
+| macOS 13 or later (Apple silicon and Intel) | `Turbodoc_<version>_universal.dmg` |
+| Windows 10 or later (x64) | `turbodoc_<version>_x64-setup.exe`, or the `.msi` |
+| Linux (x86-64) | `turbodoc_<version>_amd64.deb` for Debian and Ubuntu, or the `.AppImage` for anything else |
+
+`SHA256SUMS.txt` beside them lists each file's checksum. Builds aren't signed yet: on macOS,
+open the app once, then allow it under System Settings → Privacy & Security → Open Anyway. On
+Windows, choose More info → Run anyway when SmartScreen asks.
+
 ## What being native adds
 
 - **Quick capture from any app.** Press **⌃⌥Space** anywhere. A panel drops over the app
