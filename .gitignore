@@ -1,0 +1,5 @@
+target/
+*.app
+/dist/
+.DS_Store
+/Packager.build.toml

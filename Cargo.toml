@@ -1,0 +1,55 @@
+[package]
+name = "turbodoc-desktop"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Turbodoc for the desktop: bookmarks, notes, code snippets and diagrams, native and GPU-rendered with Rune."
+publish = false
+
+[[bin]]
+name = "turbodoc"
+path = "src/main.rs"
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd", features = ["native-file-dialog"] }
+rune-kit = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd", features = ["markdown", "mermaid"] }
+rune-theme-opencode = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+rune-mac = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+rune-notify = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
+ureq = { version = "3", features = ["json"] }
+# Linux: the Secret Service over zbus, in Rust, so the app needs no libdbus.
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "tokio", "crypto-rust"] }
+
+[features]
+hot = ["rune/hot"]
+
+# Rune patches these crates; a git dependency's [patch] doesn't reach the app, so the app repeats it.
+[patch.crates-io]
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+winit = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "8181948a390adf5182731c4d9b160b95f40efcdd" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+opt-level = 2
+
+[profile.release]
+codegen-units = 16
+incremental = true
+
+[profile.dist]
+inherits = "release"
+codegen-units = 1
+lto = "thin"
+incremental = false
+strip = true

@@ -1,0 +1,161 @@
+# Builds, tests and packages Turbodoc on macOS, Windows and Linux.
+#
+# - Every push and pull request: tests and packages on all three, and keeps the installers as
+#   the run's artifacts for a week.
+# - A tag like v0.2.0: the same, then a draft GitHub release with every installer attached.
+#   Check it and press Publish.
+#
+# Signing turns on with the repository's secrets, each platform on its own:
+#   macOS    APPLE_CERTIFICATE (base64 of the Developer ID Application .p12),
+#            APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: …"),
+#            and for notarization APPLE_API_ISSUER, APPLE_API_KEY (the key id) and
+#            APPLE_API_KEY_P8 (the .p8 file's contents, from App Store Connect).
+#   Windows  AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, and the variables
+#            ARTIFACT_SIGNING_ENDPOINT, ARTIFACT_SIGNING_ACCOUNT and ARTIFACT_SIGNING_PROFILE
+#            (Azure Artifact Signing, formerly Trusted Signing).
+# Without them the builds still succeed: macOS signs ad hoc and Windows is unsigned.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest, targets: "aarch64-apple-darwin,x86_64-apple-darwin" }
+          - { name: Windows, os: windows-latest, targets: "" }
+          # The oldest supported Ubuntu: the AppImage runs on distros at least as new as its glibc.
+          - { name: Linux, os: ubuntu-22.04, targets: "" }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libfuse2
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build
+        run: scripts/package.sh --build-only
+
+      - name: Sign the Windows binary
+        if: runner.os == 'Windows' && vars.ARTIFACT_SIGNING_ACCOUNT != ''
+        uses: azure/artifact-signing-action@v2
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\target\dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Notarization key
+        if: runner.os == 'macOS'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          # notarytool reads the key from a file. Without the secret, the app isn't notarized.
+          if [[ -n "$APPLE_API_KEY_P8" ]]; then
+            printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notarize.p8"
+            echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/notarize.p8" >> "$GITHUB_ENV"
+          fi
+
+      - name: Package
+        env:
+          # Linux: run linuxdeploy without mounting it (no FUSE needed in the container).
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: scripts/package.sh --package-only
+
+      - name: Sign the Windows installers
+        if: runner.os == 'Windows' && vars.ARTIFACT_SIGNING_ACCOUNT != ''
+        uses: azure/artifact-signing-action@v2
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist
+          files-folder-filter: exe,msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: turbodoc-${{ runner.os }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.msi
+            dist/*-setup.exe
+            dist/*.deb
+            dist/*.AppImage
+
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*

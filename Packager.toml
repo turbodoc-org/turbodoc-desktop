@@ -1,0 +1,63 @@
+# How cargo-packager (https://github.com/crabnebula-dev/cargo-packager) turns the binary into
+# installers: a .app and .dmg on macOS, an .msi and a setup .exe on Windows, and a .deb and an
+# AppImage on Linux. `scripts/package.sh` builds the binary and runs it; the release workflow
+# (.github/workflows/release.yml) does the same on each OS and signs what it makes.
+#
+# Signing comes from the environment, never from this file:
+#   macOS    APPLE_CERTIFICATE (a base64 .p12), APPLE_CERTIFICATE_PASSWORD and
+#            APPLE_SIGNING_IDENTITY sign; APPLE_API_ISSUER, APPLE_API_KEY and APPLE_API_KEY_PATH
+#            notarize.
+#   Windows  the workflow signs with Azure Artifact Signing when its secrets are set.
+
+name = "turbodoc"
+product-name = "Turbodoc"
+identifier = "ai.turbodoc.desktop"
+publisher = "Turbodoc"
+description = "Bookmarks, notes, code snippets and diagrams, synced with Turbodoc."
+homepage = "https://turbodoc.ai"
+copyright = "© Turbodoc"
+category = "Productivity"
+out-dir = "dist"
+icons = [
+  "assets/icons/32x32.png",
+  "assets/icons/64x64.png",
+  "assets/icons/128x128.png",
+  "assets/icons/256x256.png",
+  "assets/icons/512x512.png",
+  "assets/icons/Turbodoc.icns",
+  "assets/icons/Turbodoc.ico",
+]
+
+[[binaries]]
+path = "turbodoc"
+main = true
+
+# turbodoc://note/<id>, turbodoc://save?url=… and the rest (src/main.rs, `on_open_url`).
+[[deep-link-protocols]]
+schemes = ["turbodoc"]
+name = "Turbodoc link"
+
+[macos]
+minimum-system-version = "13.0"
+# Ad hoc ("-") unless scripts/package.sh is given APPLE_SIGNING_IDENTITY ("Developer ID Application: …").
+signing-identity = "-"
+
+[dmg]
+window-size = { width = 560, height = 340 }
+app-position = { x = 150, y = 170 }
+application-folder-position = { x = 410, y = 170 }
+
+[windows]
+digest-algorithm = "SHA256"
+timestamp-url = "http://timestamp.acs.microsoft.com"
+tsp = true
+
+[nsis]
+# Per user: installs without an administrator, and the turbodoc:// link is the user's own.
+installer-mode = "currentUser"
+installer-icon = "assets/icons/Turbodoc.ico"
+
+[deb]
+section = "utils"
+# What the binary loads at run time. The GPU driver (Vulkan) comes with the desktop.
+depends = ["libxkbcommon0", "libxkbcommon-x11-0", "libwayland-client0", "libvulkan1"]
