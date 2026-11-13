@@ -79,7 +79,7 @@ Each one registers `turbodoc://` links, except the AppImage, which has nowhere t
 desktop entry.
 
 ```bash
-cargo install cargo-packager --locked
+cargo install cargo-packager --version 0.11.8 --locked
 scripts/package.sh --native   # macOS: this Mac's architecture; drop --native for universal (needs rustup)
 ```
 

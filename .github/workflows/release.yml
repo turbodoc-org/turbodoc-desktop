@@ -57,9 +57,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-packager
+      # Built from its source on crates.io, at a fixed version: it runs beside the signing
+      # secrets, so no prebuilt binary from a third party. rust-cache keeps ~/.cargo/bin, so
+      # this compiles once and later runs find it installed.
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --version 0.11.8 --locked
 
       - name: Linux libraries
         if: runner.os == 'Linux'
