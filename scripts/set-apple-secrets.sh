@@ -24,6 +24,11 @@ P12=$1
 P8=$2
 [[ -f $P12 ]] || die "no file at $P12"
 [[ -f $P8 ]] || die "no file at $P8"
+# macOS lets a terminal see files in Downloads, Desktop and Documents but not read them until
+# it's granted access: try a byte of each, so that isn't mistaken for a wrong password.
+for f in "$P12" "$P8"; do
+  head -c 1 "$f" >/dev/null 2>&1 || die "this terminal may not read $f (macOS privacy). Move it to a folder like ~/signing and run this again"
+done
 command -v gh >/dev/null || die "the GitHub CLI (gh) isn't installed"
 gh auth status >/dev/null 2>&1 || die "gh isn't signed in: run \`gh auth login\`"
 gh api "repos/$REPO/environments/$ENVIRONMENT" >/dev/null 2>&1 || die "$REPO has no \"$ENVIRONMENT\" environment"
