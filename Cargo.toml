@@ -1,6 +1,6 @@
 [package]
 name = "turbodoc-desktop"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MIT"
 description = "Turbodoc for the desktop: bookmarks, notes, code snippets and diagrams, native and GPU-rendered with Rune."
