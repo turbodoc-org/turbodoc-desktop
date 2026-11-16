@@ -128,6 +128,17 @@ fn detail(s: &App, ed: &DiagramEditor, k: &Kit, width: f32) -> El {
                 if let Some(ed) = &mut s.diagram {
                     ed.touch(tx);
                 }
+            })
+            .on_input_key(|s: &mut App, ev, tx| {
+                let Some(ed) = &mut s.diagram else { return false };
+                match super::typing::key(&mut ed.source, ev, tx, super::typing::Doc::Code { unit: "  " }) {
+                    super::typing::Outcome::Pass => false,
+                    super::typing::Outcome::Handled => true,
+                    super::typing::Outcome::Edited => {
+                        ed.touch(tx);
+                        true
+                    }
+                }
             });
         body = body.child(
             col()

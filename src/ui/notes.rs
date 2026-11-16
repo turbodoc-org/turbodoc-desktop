@@ -5,7 +5,7 @@ use rune::{Cx, El, GrowthSpec, ScrollSpec, TextStyle, col, el, icon, row, text, 
 use rune_kit::{Kit, Markdown, SegmentedControl, TextInput};
 
 use super::theme::{self, Tint};
-use super::{icons, md_syntax, widgets};
+use super::{icons, md_syntax, typing, widgets};
 use crate::api::models::Note;
 use crate::app::{App, NoteEditor, NoteMode, Save};
 use crate::format;
@@ -162,6 +162,17 @@ fn editor(s: &App, ed: &NoteEditor, mode: NoteMode, width: f32, k: &Kit) -> El {
         .on_input_change(|s: &mut App, tx| {
             if let Some(ed) = &mut s.note {
                 ed.touch(tx);
+            }
+        })
+        .on_input_key(|s: &mut App, ev, tx| {
+            let Some(ed) = &mut s.note else { return false };
+            match typing::key(&mut ed.body, ev, tx, typing::Doc::Markdown) {
+                typing::Outcome::Pass => false,
+                typing::Outcome::Handled => true,
+                typing::Outcome::Edited => {
+                    ed.touch(tx);
+                    true
+                }
             }
         });
     let split = mode == NoteMode::Split;

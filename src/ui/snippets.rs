@@ -162,6 +162,17 @@ fn detail(s: &App, ed: &SnippetEditor, k: &Kit, width: f32) -> El {
                     ed.touch(tx);
                 }
             })
+            .on_input_key(|s: &mut App, ev, tx| {
+                let Some(ed) = &mut s.snippet else { return false };
+                match super::typing::key(&mut ed.code, ev, tx, super::typing::Doc::Code { unit: "    " }) {
+                    super::typing::Outcome::Pass => false,
+                    super::typing::Outcome::Handled => true,
+                    super::typing::Outcome::Edited => {
+                        ed.touch(tx);
+                        true
+                    }
+                }
+            })
     } else {
         rich(ed.code.text.clone(), spans).font(CODE).color(code_kit.c.text_base).selectable(true).selection_color(code_kit.selection()).key("snippet-code-view")
     };

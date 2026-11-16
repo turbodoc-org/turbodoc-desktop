@@ -255,3 +255,102 @@ fn any_bookmark_in_the_list_selects() {
     }
 }
 
+
+fn note_with(body: &str) -> Runtime<App> {
+    thread_local!(static BODY: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) });
+    BODY.with(|b| *b.borrow_mut() = body.to_owned());
+    let mut rt = runtime(|s| {
+        demo::sign_in(s);
+        s.section = Section::Notes;
+        let mut n = s.lib.notes[1].clone();
+        n.markdown = BODY.with(|b| b.borrow().clone());
+        let mut ed = crate::app::NoteEditor::open(&n);
+        ed.body.focused = true;
+        ed.body.set_caret(ed.body.text.len());
+        s.note = Some(ed);
+    });
+    settle(&mut rt);
+    rt
+}
+
+fn body(rt: &Runtime<App>) -> String {
+    let ed = rt.state.note.as_ref().expect("open note");
+    let mut t = ed.body.text.clone();
+    t.insert(ed.body.focus, '|');
+    t
+}
+
+#[test]
+fn return_in_a_note_starts_a_new_line() {
+    let mut rt = note_with("First line");
+    key(&mut rt, Key::Enter, Mods::default());
+    typed(&mut rt, "Second");
+    assert_eq!(body(&rt), "First line\nSecond|");
+    assert!(matches!(rt.state.note.as_ref().unwrap().save, Save::Pending { .. }), "a line break autosaves like typing");
+    assert!(rt.state.note.as_ref().unwrap().body.focused, "the body keeps focus");
+}
+
+#[test]
+fn holding_return_in_a_note_keeps_breaking_lines() {
+    let mut rt = note_with("a");
+    rt.key(KeyEvent { key: Key::Enter, mods: Mods::default() });
+    rt.repeat_key(KeyEvent { key: Key::Enter, mods: Mods::default() });
+    rt.repeat_key(KeyEvent { key: Key::Enter, mods: Mods::default() });
+    settle(&mut rt);
+    assert_eq!(body(&rt), "a\n\n\n|");
+}
+
+#[test]
+fn return_continues_and_ends_a_list_in_a_note() {
+    let mut rt = note_with("- one");
+    key(&mut rt, Key::Enter, Mods::default());
+    typed(&mut rt, "two");
+    key(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(body(&rt), "- one\n- two\n- |");
+    key(&mut rt, Key::Enter, Mods::default());
+    assert_eq!(body(&rt), "- one\n- two\n|", "Return on an empty item ends the list");
+    key(&mut rt, Key::Command('z'), Mods { cmd: true, logo: true, ..Mods::default() });
+    assert_eq!(body(&rt), "- one\n- two\n- |", "and ⌘Z brings the marker back");
+}
+
+#[test]
+fn tab_nests_a_list_item_and_stays_in_the_note() {
+    let mut rt = note_with("- one\n- two");
+    key(&mut rt, Key::Tab, Mods::default());
+    assert_eq!(body(&rt), "- one\n  - two|");
+    assert!(rt.state.note.as_ref().unwrap().body.focused, "Tab doesn't move focus out of the body");
+    assert!(matches!(rt.state.note.as_ref().unwrap().save, Save::Pending { .. }));
+    key(&mut rt, Key::Tab, Mods { shift: true, ..Mods::default() });
+    assert_eq!(body(&rt), "- one\n- two|");
+}
+
+#[test]
+fn return_in_code_keeps_the_indent() {
+    let mut rt = runtime(|s| {
+        demo::sign_in(s);
+        s.section = Section::Snippets;
+        s.open_snippet("s2");
+        let ed = s.snippet.as_mut().expect("open snippet");
+        ed.editing = true;
+        ed.code.focused = true;
+        let at = ed.code.text.find("delay *= 2;").expect("demo code") + "delay *= 2;".len();
+        ed.code.set_caret(at);
+    });
+    settle(&mut rt);
+    key(&mut rt, Key::Enter, Mods::default());
+    typed(&mut rt, "x");
+    assert!(rt.state.snippet.as_ref().unwrap().code.text.contains("delay *= 2;\n        x\n    }"), "{}", rt.state.snippet.as_ref().unwrap().code.text);
+
+    rt.update(|s, tx| s.go(Section::Diagrams, tx));
+    rt.update(|s, _| {
+        s.open_diagram("d1");
+        let ed = s.diagram.as_mut().expect("open diagram");
+        ed.source.focused = true;
+        let at = ed.source.text.find("Queue --> Save").expect("demo source") + "Queue --> Save".len();
+        ed.source.set_caret(at);
+    });
+    settle(&mut rt);
+    key(&mut rt, Key::Enter, Mods::default());
+    typed(&mut rt, "Save --> Done");
+    assert!(rt.state.diagram.as_ref().unwrap().source.text.contains("Queue --> Save\n  Save --> Done\n"), "{}", rt.state.diagram.as_ref().unwrap().source.text);
+}
