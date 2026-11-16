@@ -309,8 +309,10 @@ fn return_continues_and_ends_a_list_in_a_note() {
     assert_eq!(body(&rt), "- one\n- two\n- |");
     key(&mut rt, Key::Enter, Mods::default());
     assert_eq!(body(&rt), "- one\n- two\n|", "Return on an empty item ends the list");
-    key(&mut rt, Key::Command('z'), Mods { cmd: true, logo: true, ..Mods::default() });
-    assert_eq!(body(&rt), "- one\n- two\n- |", "and ⌘Z brings the marker back");
+    // Undo is ⌘Z on macOS and Ctrl+Z elsewhere (Rune sets `cmd` with Ctrl there).
+    let undo = if cfg!(target_os = "macos") { Mods { cmd: true, logo: true, ..Mods::default() } } else { Mods { cmd: true, ctrl: true, ..Mods::default() } };
+    key(&mut rt, Key::Command('z'), undo);
+    assert_eq!(body(&rt), "- one\n- two\n- |", "and undo brings the marker back");
 }
 
 #[test]
