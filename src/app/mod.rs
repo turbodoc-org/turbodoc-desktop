@@ -4,6 +4,7 @@
 pub mod actions;
 pub mod editors;
 pub mod sync;
+pub mod update;
 
 use rune::{AppHandle, TextEdit, Tx};
 use rune_kit::PaneState;
@@ -267,6 +268,8 @@ pub struct App {
     pub framed: bool,
     pub focused: bool,
     pub last_focus_sync: f64,
+    /// New versions of the app: checking, downloading, and the restart into one.
+    pub updates: update::Updates,
 }
 
 pub const UNDO_SECONDS: f64 = 6.0;
@@ -295,6 +298,7 @@ impl App {
             Phase::Ready(u) => crate::store::cache::load(&u.id).unwrap_or_default(),
             Phase::SignedOut(_) => Library::default(),
         };
+        let updates = update::Updates::new(handle.is_some());
         let sidebar_w = prefs.get::<f32>("sidebar_width").unwrap_or(248.0);
         let mut app = App {
             handle,
@@ -331,6 +335,7 @@ impl App {
             framed: false,
             focused: true,
             last_focus_sync: 0.0,
+            updates,
         };
         app.previews.known = app.lib.og.iter().cloned().collect();
         app

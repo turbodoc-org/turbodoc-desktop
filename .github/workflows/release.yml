@@ -2,8 +2,9 @@
 #
 # - Every push and pull request: tests and packages on all three, and keeps the installers as
 #   the run's artifacts for a week.
-# - A tag like v0.2.0: the same, then a draft GitHub release with every installer attached.
-#   Check it and press Publish.
+# - A tag like v0.2.0: the same, then a draft GitHub release with every installer attached,
+#   and the signed updates with their manifests. Check it and press Publish: running copies
+#   are offered the update from then on (src/updater.rs reads the latest published release).
 #
 # Signing uses secrets in the "release" environment (Settings → Environments), which only
 # v* tags may use: pushes to branches and pull requests never see them. Each platform turns on
@@ -15,6 +16,8 @@
 #   Windows  AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, and the variables
 #            ARTIFACT_SIGNING_ENDPOINT, ARTIFACT_SIGNING_ACCOUNT and ARTIFACT_SIGNING_PROFILE
 #            (Azure Artifact Signing, formerly Trusted Signing).
+#   Updates  CARGO_PACKAGER_SIGN_PRIVATE_KEY and CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD sign
+#            what running copies update to (scripts/set-updater-secrets.sh stores them).
 # Without them the builds still succeed: macOS signs ad hoc and Windows is unsigned.
 #
 # Every action is pinned to a commit, since a tag can be moved to other code and these steps
@@ -176,6 +179,22 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
+      # What running copies update from (src/updater.rs): the signed update file and the manifest
+      # the app reads from the latest release. Last of the signing steps: this signature covers
+      # the file's final bytes. A tag without the updater key still releases, but isn't offered
+      # to running copies.
+      - name: Updater files
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$CARGO_PACKAGER_SIGN_PRIVATE_KEY" ]]; then
+            echo "::warning::No updater key: running copies won't be offered this release. See scripts/set-updater-secrets.sh."
+          else
+            scripts/update-manifest.sh
+          fi
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: turbodoc-${{ runner.os }}
@@ -187,6 +206,9 @@ jobs:
             dist/*-setup.exe
             dist/*.deb
             dist/*.AppImage
+            dist/*.app.tar.gz
+            dist/*.sig
+            dist/update-*.json
 
   release:
     name: Draft release

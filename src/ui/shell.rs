@@ -4,7 +4,7 @@ use rune::{Cx, El, Spring, col, el, icon, row, text};
 use rune_kit::shell::{PaneMotion, Sidebar, SidebarPeek, SidebarRow, SidebarToggle, SplitView, Toolbar};
 use rune_kit::{Button, ButtonVariant, ControlSize, Kit, Spinner, TextInput};
 
-use super::{bookmarks, diagrams, dialogs, home, icons, notes, palette, settings, snippets, toasts, widgets};
+use super::{bookmarks, diagrams, dialogs, home, icons, notes, palette, settings, snippets, toasts, update, widgets};
 use crate::api::auth::User;
 use crate::app::{App, Section, Sync};
 use crate::format;
@@ -162,10 +162,13 @@ fn account_row(s: &App, user: &User, k: &Kit) -> El {
         .key("nav-account")
 }
 
-/// The toolbar holds only what's needed everywhere: search, and the sync state when it isn't
-/// simply "up to date".
+/// The toolbar holds only what's needed everywhere: search, the sync state when it isn't
+/// simply "up to date", and a new version once it's ready.
 fn toolbar(s: &App, k: &Kit) -> Toolbar {
     let mut trailing = row().gap(8.0).center_y();
+    if let Some(pill) = update::pill(s, k) {
+        trailing = trailing.child(pill);
+    }
     match s.sync {
         Sync::Running { .. } => trailing = trailing.child(row().key("sync").gap(6.0).center_y().child(Spinner::new().build(k)).child(text("Syncing").font(k.ty.small).color(k.c.text_faint)).transition(rune::Transition::opacity())),
         Sync::Offline { .. } => {

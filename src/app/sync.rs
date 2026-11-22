@@ -281,6 +281,7 @@ impl App {
         }
         changed |= self.commit_due_deletes(clock, tx);
         changed |= self.autosave_due(clock, tx);
+        changed |= self.update_due(clock, tx);
         if self.user().is_some() && !matches!(self.sync, Sync::Running { .. }) && clock - self.last_focus_sync > BACKGROUND_SYNC_EVERY && self.focused {
             self.refresh(tx);
             changed = true;
