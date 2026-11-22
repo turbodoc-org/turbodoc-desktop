@@ -1,0 +1,51 @@
+.github/workflows/release.yml
+  s_dc4de67119133d::t_43c70c9137b15c 5-7,19-20,182-197,209-211
+Cargo.lock
+  s_dc4de67119133d::t_6d94681d31ea71 569-604,638-648,886-895,1039-1059,1119-1124,1238-1247,1363,1467,1470,1492,1495-1496,1616-1638,1645-1703,1933-1938,2167-2172,2206-2211,2836-2847,3241-3296,3339-3349,3388-3402,3465-3475,3482-3523,3835-3846,3853,3874-3879,3889-3897,4036-4047,4391-4399,4422-4432,4576-4581,4610-4632,4663-4707,4750-4755,4778,4888,4967-4975,5068-5080,5509-5517,5554-5568,5611-5616,5629-5634,5647-5652,5677-5682,5695-5700,5713-5718,5731-5736,5871-5880
+Cargo.toml
+  s_dc4de67119133d::t_7ba627c351bea1 26-27
+README.md
+  s_dc4de67119133d::t_c1827fe98eb798 30-39,133,144-157,179,205,208
+scripts/set-updater-secrets.sh
+  s_dc4de67119133d::t_998d829a53f143 1-71
+scripts/update-manifest.sh
+  s_dc4de67119133d::t_3453d5f1687175 1-66
+src/app/mod.rs
+  s_dc4de67119133d::t_078d538cd764e7 7,271-272,301,338
+src/app/sync.rs
+  s_dc4de67119133d::t_47f4106ff3eb77 284
+src/app/update.rs
+  s_dc4de67119133d::t_5cb0465e9f35a2 1-222
+src/demo.rs
+  s_dc4de67119133d::t_d5098c5003a90c 145-149
+src/main.rs
+  s_dc4de67119133d::t_6c430afdd65929 16,168
+src/tests.rs
+  s_dc4de67119133d::t_a1b66c4fd20b68 5,360-419
+src/ui/mod.rs
+  s_dc4de67119133d::t_21a8719ddec060 19
+src/ui/settings.rs
+  s_dc4de67119133d::t_b0dc00d0cf1c6d 1-2,5,9,131-145
+src/ui/shell.rs
+  s_dc4de67119133d::t_f2a1a789cf6ba7 7,165-166,169-171
+src/ui/update.rs
+  s_dc4de67119133d::t_f08368ad1435a8 1-79
+src/updater.rs
+  s_dc4de67119133d::t_5657fc418cc8ff 1-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "212195ae8475d715eeec0f7894728e0e1fb3cfd8",
+  "prompts": {},
+  "sessions": {
+    "s_dc4de67119133d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_dc4de67119133d",
+        "model": "unknown"
+      },
+      "human_author": "Nico Botha <nicolaasb@pm.me>"
+    }
+  }
+}
