@@ -10,8 +10,8 @@
 use std::path::Path;
 
 /// The updater's public key (minisign, base64): `scripts/set-updater-secrets.sh` makes the pair
-/// and prints this half. Empty: this build never updates itself.
-pub const PUBKEY: &str = "";
+/// and prints this half (key ID 472D15F889456DE8). Empty: this build never updates itself.
+pub const PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ3MkQxNUY4ODk0NTZERTgKUldUb2JVV0orQlV0Uitja0taa2VFYmtWalN4UkFCQSs3TzFOY2w5WHRqRlZPS2Q4bmJ6eTJmM2IK";
 
 /// `{{target}}` is `macos`, `windows` or `linux`; `{{arch}}` is `x86_64` or `aarch64`.
 const ENDPOINT: &str = "https://github.com/turbodoc-org/turbodoc-desktop/releases/latest/download/update-{{target}}-{{arch}}.json";
