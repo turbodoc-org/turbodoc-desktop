@@ -109,9 +109,17 @@ scripts/package.sh --native   # macOS: this Mac's architecture; drop --native fo
 
 ### Through GitHub
 
-`.github/workflows/release.yml` runs on macOS, Windows and Linux for every push and pull
-request: it runs the tests, packages, and keeps the installers on the run for a week. To
-release, raise `version` in `Cargo.toml`, then tag and push:
+Two workflows, so that hosted minutes go where they count:
+
+- `.github/workflows/ci.yml` runs the tests on Linux for every pull request and every push to
+  `main`. Changes to Markdown and `docs/` alone don't start it.
+- `.github/workflows/release.yml` builds and packages on macOS, Windows and Linux, and keeps the
+  installers on the run for a week. It runs for `v*` tags, or when started by hand from Actions
+  → Release → Run workflow, on any branch: to try a change on macOS or Windows, or the
+  installers, before merging. On a private repository a macOS minute counts as ten and a
+  Windows minute as two, so it doesn't run on every push.
+
+To release, raise `version` in `Cargo.toml`, then tag and push:
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
@@ -193,6 +201,16 @@ target/debug/turbodoc --snap capture.png --window capture --size 560x150
 `cargo test` runs the unit tests and the interaction tests in `src/tests.rs`. The interaction
 tests drive the real views through Rune's runtime: they click, type, paste and press keys.
 
+To run them before every push, turn on the repository's hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`git push --no-verify` skips it. CI runs the same tests on Linux; to run CI on your own machine
+instead of GitHub's, register a [self-hosted runner](https://docs.github.com/actions/hosting-your-own-runners)
+and set the repository variable `CI_RUNNER` to `self-hosted`.
+
 ## Layout
 
 | Path | What's there |
@@ -206,7 +224,8 @@ tests drive the real views through Rune's runtime: they click, type, paste and p
 | `src/capture.rs` | The quick-capture panel (a second window), with its global shortcut. |
 | `src/demo.rs` | The demo library and the headless scenes. |
 | `Packager.toml`, `scripts/` | How the installers are made: `package.sh` (all three platforms), `bundle-macos.sh` (a quick local `.app`), `update-manifest.sh` (the signed updates) and `make-icons.sh`. |
-| `.github/workflows/` | The release workflow: tests, installers and signing on macOS, Windows and Linux. |
+| `.github/workflows/` | `ci.yml`, the tests on Linux for pull requests and `main`, and `release.yml`: tests, installers and signing on macOS, Windows and Linux, for tags or by hand. |
+| `.githooks/` | A `pre-push` hook that runs the tests. |
 
 Views never block. Every network call runs on a worker, and its answer comes back to the UI
 thread through `AppHandle::update`. The first fetch starts in `on_ready`, after the first

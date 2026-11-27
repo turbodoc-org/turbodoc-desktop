@@ -1,7 +1,8 @@
 # Builds, tests and packages Turbodoc on macOS, Windows and Linux.
 #
-# - Every push and pull request: tests and packages on all three, and keeps the installers as
-#   the run's artifacts for a week.
+# - Started by hand (Actions → Release → Run workflow, on any branch): tests and packages on
+#   all three, and keeps the installers as the run's artifacts for a week. Pull requests and
+#   main only run ci.yml: macOS minutes count 10× and Windows 2×, so this runs when asked.
 # - A tag like v0.2.0: the same, then a draft GitHub release with every installer attached,
 #   and the signed updates with their manifests. Check it and press Publish: running copies
 #   are offered the update from then on (src/updater.rs reads the latest published release).
@@ -26,9 +27,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
   workflow_dispatch:
 
 # Read-only by default; only the job that drafts the release may write.
@@ -74,7 +73,8 @@ jobs:
           # A new key starts a new cache. "packager-source": the caches before it held a
           # cargo-packager downloaded from QuickInstall, which `cargo install` would keep.
           key: packager-source
-          # Release builds read main's cache but never write one.
+          # A run started by hand writes its branch's cache. Release builds read main's (if a run
+          # on main left one in the last week, otherwise they build from scratch) but never write.
           save-if: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
       # Built from its source on crates.io, at a fixed version: it runs beside the signing
