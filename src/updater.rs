@@ -64,7 +64,7 @@ fn install_kind(exe: &Path) -> Channel {
     // The setup .exe installs per user, under %LOCALAPPDATA%; the .msi installs elsewhere, and
     // the setup .exe would put a second copy beside it.
     match std::env::var_os("LOCALAPPDATA") {
-        Some(local) if exe.starts_with(local) => Channel::InPlace,
+        Some(local) if exe.starts_with(&local) => Channel::InPlace,
         _ => Channel::Download,
     }
 }
