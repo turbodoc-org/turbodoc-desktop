@@ -1,0 +1,25 @@
+.githooks/pre-push
+  s_df83f54efd6ff6::t_e9ceb8a5319e11 1-20
+.github/workflows/ci.yml
+  s_df83f54efd6ff6::t_d037e3e8b3614e 1-57
+.github/workflows/release.yml
+  s_df83f54efd6ff6::t_b87c111d502d18 3-5,73-74
+README.md
+  s_df83f54efd6ff6::t_850549e6de9b7a 102-112,178-187,200-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "551dfceae3a5d5f76edba9ae6a214e3171a02177",
+  "prompts": {},
+  "sessions": {
+    "s_df83f54efd6ff6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_df83f54efd6ff6",
+        "model": "unknown"
+      },
+      "human_author": "Nico Botha <nicolaasb@pm.me>"
+    }
+  }
+}
