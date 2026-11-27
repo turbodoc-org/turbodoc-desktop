@@ -1,0 +1,57 @@
+# Runs the tests on Linux for pull requests and for main: the cheap check, at the 1× minute rate.
+# macOS and Windows (10× and 2× on a private repository), the installers and signing are
+# release.yml's, on a v* tag or started by hand.
+#
+# Main's runs matter beyond the tests: a pull request's cache can only be restored from its own
+# branch or main, so they keep a warm cache for every new pull request.
+#
+# Set the repository variable CI_RUNNER (Settings → Variables) to "self-hosted" to run this on
+# your own machine and use no hosted minutes; it needs the libraries below installed already.
+name: CI
+
+on:
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "LICENSE*"]
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "LICENSE*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ci
+          # Pull requests read main's cache; only main writes one, so they don't crowd it out.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Linux libraries
+        if: runner.environment == 'github-hosted'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev
+
+      - name: Test
+        run: cargo test --locked

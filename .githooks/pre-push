@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs the tests before every push, so CI (.github/workflows/ci.yml) mostly confirms what has
+# already passed here. Turn it on once per clone:
+#
+#   git config core.hooksPath .githooks
+#
+# It tests the working tree, not the commits being pushed: stash what isn't committed for an
+# exact check. `git push --no-verify` skips it.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Pushing only deletions (git push origin :branch) has nothing to test.
+pushes=0
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  if [[ ! $local_sha =~ ^0+$ ]]; then pushes=1; fi
+done
+if [[ $pushes == 0 ]]; then exit 0; fi
+
+echo "pre-push: cargo test --locked (git push --no-verify skips this)" >&2
+exec cargo test --locked
