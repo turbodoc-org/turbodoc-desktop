@@ -36,7 +36,7 @@ KEY="$DIR/turbodoc-updater.key"
 # `signer generate` asks for the key's password itself, then writes the private key to $KEY
 # and the public key to $KEY.pub.
 echo "cargo packager asks for a password for the new key (twice):"
-cargo packager signer generate -w "$KEY"
+cargo packager signer generate --path "$KEY"
 [[ -s $KEY && -s $KEY.pub ]] || die "cargo packager didn't write the key pair"
 
 # The password, for the secret: checked by signing a file with it, as the release workflow does.
