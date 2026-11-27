@@ -1,0 +1,21 @@
+Cargo.lock
+  s_466434d23c683c::t_95dd479bbf2c78 4775
+Cargo.toml
+  s_466434d23c683c::t_652e61e31ca699 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23f15282290a278a31d23126dfe19c1c3e8556fa",
+  "prompts": {},
+  "sessions": {
+    "s_466434d23c683c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_466434d23c683c",
+        "model": "unknown"
+      },
+      "human_author": "Nico Botha <nicolaasb@pm.me>"
+    }
+  }
+}
