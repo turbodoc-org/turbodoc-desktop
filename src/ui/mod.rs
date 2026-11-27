@@ -16,6 +16,7 @@ pub mod snippets;
 pub mod theme;
 pub mod toasts;
 pub mod typing;
+pub mod update;
 pub mod widgets;
 
 use rune::{Cx, El};

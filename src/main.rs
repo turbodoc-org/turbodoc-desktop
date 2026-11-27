@@ -13,6 +13,7 @@ mod keys;
 mod net;
 mod store;
 mod ui;
+mod updater;
 
 use std::sync::OnceLock;
 
@@ -164,6 +165,7 @@ fn decode(s: &str) -> String {
 fn menus(app: rune::App<App>) -> rune::App<App> {
     let signed = |f: fn(&mut App, &mut Tx)| f;
     app.menu_item(MenuItem::new("Settings…", |s: &mut App, _| s.open_settings()).id("settings").key_equivalent(sc("mod+comma")))
+        .menu_item(MenuItem::new("Check for Updates…", |s: &mut App, tx| s.check_for_update(true, tx)).id("check-updates"))
         .menu_item(MenuItem::new("Sign Out", |s: &mut App, tx| s.sign_out(tx)).id("sign-out"))
         .menu_item(MenuItem::new("New Note", signed(|s, tx| if s.user().is_some() { s.new_note(String::new(), tx) })).id("new-note").menu("File").key_equivalent(sc("mod+n")))
         .menu_item(MenuItem::new("Add Bookmark…", |s: &mut App, _| if s.user().is_some() { s.new_bookmark_dialog(None) }).id("new-bookmark").menu("File").key_equivalent(sc("mod+shift+n")))

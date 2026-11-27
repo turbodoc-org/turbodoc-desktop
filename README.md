@@ -27,6 +27,16 @@ Get the latest version from the **[Releases page](https://github.com/turbodoc-or
 open the app once, then allow it under System Settings → Privacy & Security → Open Anyway. On
 Windows, choose More info → Run anyway when SmartScreen asks.
 
+### Updates
+
+Turbodoc checks for a new version soon after it opens and every six hours, and downloads it in
+the background. Once it's ready, an "Update to <version>" button appears in the toolbar (and
+under Settings → About). Pressing it saves anything open, sends pending deletes, installs the
+new version and restarts. Turbodoc → Check for Updates… checks straight away.
+
+The macOS app, the Windows setup `.exe` and the AppImage update themselves. The `.deb` and the
+`.msi` don't: the button says a new version is out and opens this page.
+
 ## What being native adds
 
 - **Quick capture from any app.** Press **⌃⌥Space** anywhere. A panel drops over the app
@@ -128,6 +138,7 @@ commit.
 | macOS signing | `APPLE_CERTIFICATE` (the `.p12`, base64), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` | A "Developer ID Application" certificate from the Apple Developer Program, exported with its private key from Keychain Access |
 | macOS notarization | `APPLE_API_ISSUER`, `APPLE_API_KEY` (the key ID), `APPLE_API_KEY_P8` (the `.p8` file's text) | App Store Connect → Users and Access → Integrations → Team Keys, with the Developer role |
 | Windows | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, plus the variables `ARTIFACT_SIGNING_ENDPOINT`, `ARTIFACT_SIGNING_ACCOUNT` and `ARTIFACT_SIGNING_PROFILE` | An Azure Artifact Signing account and certificate profile, and an app registration with the "Artifact Signing Certificate Profile Signer" role |
+| Updates | `CARGO_PACKAGER_SIGN_PRIVATE_KEY`, `CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD` | `scripts/set-updater-secrets.sh`, which makes the key pair and prints the public key for `PUBKEY` in `src/updater.rs` |
 
 For Apple's, run `scripts/set-apple-secrets.sh <certificate.p12> <AuthKey_….p8>` yourself.
 It checks the certificate, its password and the API key with Apple, then stores all six
@@ -137,6 +148,20 @@ and the disk image, notarizes and staples both, and fails if Gatekeeper wouldn't
 Without them every build still succeeds: macOS is signed ad hoc (Gatekeeper then blocks a
 downloaded copy until it is allowed in System Settings → Privacy & Security) and Windows is
 unsigned (SmartScreen warns before it runs).
+
+### How updates are published
+
+On a tag, after every other signature, `scripts/update-manifest.sh` signs the file each OS
+updates from (the `.app` as a `.tar.gz`, the setup `.exe`, the AppImage) and writes
+`update-<os>-<arch>.json` beside it. Both go on the draft release. The app reads
+`releases/latest/download/update-<os>-<arch>.json`, and a draft is never "latest", so **running
+copies are offered a release when you publish it**, not before. Each download is checked against
+the public key built into the app before it's installed.
+
+Keep the updater's private key in your password manager. Without it no installed copy can take
+another update, and a new key means every copy has to be reinstalled by hand. A tag without the
+key still releases; running copies just aren't offered it. A macOS build that isn't notarized
+isn't offered either.
 
 The icons in `assets/icons/` come from `assets/icon-1024.png`. After changing it, run
 `scripts/make-icons.sh` on a Mac.
@@ -159,6 +184,7 @@ The icons in `assets/icons/` come from `assets/icon-1024.png`. After changing it
 | `TURBODOC_API_URL` | Uses another API, such as `https://api-dev.turbodoc.ai` or `http://localhost:8787`. |
 | `TURBODOC_INSECURE_SESSION=1` | Keeps the session in the data folder, not the keychain. An unsigned build that is rebuilt often otherwise makes the keychain ask again after each rebuild. |
 | `RUNE_DIRS_ROOT=/tmp/td` | Puts every folder the app writes under one root. |
+| `TURBODOC_UPDATE_URL` | Reads update manifests from another address, with the same `{{target}}` and `{{arch}}` placeholders, to try an update against a local server. A debug build checks for updates only when this is set. |
 
 ## Check it without an account
 
@@ -194,9 +220,10 @@ and set the repository variable `CI_RUNNER` to `self-hosted`.
 | `src/store/` | Keychain secrets, the offline library snapshot, and the bounded preview-image cache. |
 | `src/app/` | The app's state and its explicit state machines: sign-in phase, sync, autosave and deferred deletes. Actions are applied optimistically and roll back on error. |
 | `src/ui/` | Every screen: shell, home, bookmarks, notes, snippets, diagrams, palette, dialogs, settings and sign-in. Also the theme and icons. |
+| `src/updater.rs`, `src/app/update.rs` | Updates: where they come from and how one is installed, and when to check, download and restart. |
 | `src/capture.rs` | The quick-capture panel (a second window), with its global shortcut. |
 | `src/demo.rs` | The demo library and the headless scenes. |
-| `Packager.toml`, `scripts/` | How the installers are made: `package.sh` (all three platforms), `bundle-macos.sh` (a quick local `.app`) and `make-icons.sh`. |
+| `Packager.toml`, `scripts/` | How the installers are made: `package.sh` (all three platforms), `bundle-macos.sh` (a quick local `.app`), `update-manifest.sh` (the signed updates) and `make-icons.sh`. |
 | `.github/workflows/` | `ci.yml`, the tests on Linux for pull requests and `main`, and `release.yml`: tests, installers and signing on macOS, Windows and Linux, for tags or by hand. |
 | `.githooks/` | A `pre-push` hook that runs the tests. |
 

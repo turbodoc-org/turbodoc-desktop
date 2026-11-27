@@ -1,10 +1,12 @@
-//! Settings: the account, appearance, quick capture, the weekly email digest, and the offline copy.
+//! Settings: the account, appearance, quick capture, the weekly email digest, the offline copy,
+//! and software updates.
 use rune::{Cx, El, ScrollSpec, col, row, text};
 use rune_kit::shell::Page;
-use rune_kit::{Button, ButtonVariant, Kit, SegmentedControl, Switch};
+use rune_kit::{Button, ButtonVariant, Kit, SegmentedControl, Spinner, Switch};
 use serde_json::json;
 
 use super::theme::{self, Tint};
+use super::update::Control;
 use super::widgets;
 use crate::api::auth::User;
 use crate::api::client;
@@ -126,6 +128,21 @@ pub fn view(s: &App, user: &User, k: &Kit, cx: &mut Cx<App>, _layer: &mut Vec<El
             .build(k),
         k,
     ));
+    let (detail, control) = super::update::status(s);
+    let control = match control {
+        Control::Check => Button::new("Check now").variant(ButtonVariant::Neutral).on_press_tx(|s: &mut App, tx| s.check_for_update(true, tx)).build(k).key("check-updates"),
+        Control::Restart => Button::new("Restart to update").variant(ButtonVariant::Contrast).on_press_tx(|s: &mut App, tx| s.restart_to_update(tx)).build(k).key("restart-update"),
+        Control::Download => Button::new("Download")
+            .variant(ButtonVariant::Neutral)
+            .on_press_tx(|_: &mut App, tx| {
+                let _ = tx.open_url(crate::updater::RELEASES);
+            })
+            .build(k)
+            .key("download-update"),
+        Control::Busy => Spinner::new().build(k),
+        Control::Nothing => rune::el(),
+    };
+    let about = about.child(widgets::hairline(k)).child(line("Software update", &detail, control, k));
 
     let body = col()
         .key("settings-body")

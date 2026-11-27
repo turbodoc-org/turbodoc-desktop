@@ -2,6 +2,7 @@
 //! hit testing and handlers, on the demo library, with no network (no `AppHandle`).
 use rune::{Env, Key, KeyEvent, Mods, Runtime};
 
+use crate::app::update::Update;
 use crate::app::{App, BookmarkFilter, Dialog, Layout, Phase, Save, Section};
 use crate::{demo, ui};
 
@@ -355,4 +356,64 @@ fn return_in_code_keeps_the_indent() {
     key(&mut rt, Key::Enter, Mods::default());
     typed(&mut rt, "Save --> Done");
     assert!(rt.state.diagram.as_ref().unwrap().source.text.contains("Queue --> Save\n  Save --> Done\n"), "{}", rt.state.diagram.as_ref().unwrap().source.text);
+}
+
+#[test]
+fn the_toolbar_has_no_update_button_until_one_is_ready() {
+    let mut rt = runtime(demo::sign_in);
+    settle(&mut rt);
+    assert!(rt.find("update").is_none());
+    rt.update(|s, _| s.updates.phase = Update::Ready { version: "9.9.9".into() });
+    settle(&mut rt);
+    assert!(rt.find("update").is_some(), "a ready update shows in the toolbar");
+}
+
+#[test]
+fn restarting_to_update_saves_the_open_note_first() {
+    let mut rt = runtime(|s| {
+        demo::sign_in(s);
+        s.section = Section::Notes;
+        let n = s.lib.notes[1].clone();
+        let mut ed = crate::app::NoteEditor::open(&n);
+        ed.body.focused = true;
+        ed.body.set_caret(ed.body.text.len());
+        s.note = Some(ed);
+        s.updates.phase = Update::Ready { version: "9.9.9".into() };
+    });
+    rt.poll = Some(crate::poll); // the restart goes on from `tick`
+    settle(&mut rt);
+    typed(&mut rt, " More.");
+    assert!(matches!(rt.state.note.as_ref().unwrap().save, Save::Pending { .. }));
+    click(&mut rt, "update");
+    assert!(rt.state.note.as_ref().unwrap().save.in_flight(), "the note saves now, not after the pause");
+    // With the save still out, the restart waits for it rather than installing.
+    assert!(matches!(rt.state.updates.phase, Update::Installing { started: false, .. }), "{:?}", rt.state.updates.phase);
+}
+
+#[test]
+fn a_failed_save_stops_the_restart() {
+    let mut rt = runtime(|s| {
+        demo::sign_in(s);
+        s.section = Section::Notes;
+        let n = s.lib.notes[1].clone();
+        let mut ed = crate::app::NoteEditor::open(&n);
+        ed.save = Save::Failed { message: "offline".into() };
+        s.note = Some(ed);
+        s.updates.phase = Update::Ready { version: "9.9.9".into() };
+    });
+    rt.poll = Some(crate::poll); // the restart goes on from `tick`
+    settle(&mut rt);
+    click(&mut rt, "update");
+    assert_eq!(rt.state.updates.phase, Update::Ready { version: "9.9.9".into() }, "the button comes back");
+    assert!(!rt.state.toasts.is_empty(), "and says why");
+}
+
+#[test]
+fn versions_compare_as_semver() {
+    use crate::updater::newer;
+    assert!(newer("0.10.0", "0.9.9"));
+    assert!(newer("0.2.2", "0.2.1"));
+    assert!(!newer("0.2.1", "0.2.1"));
+    assert!(!newer("0.2.0", "0.2.1"));
+    assert!(!newer("", "0.2.1"));
 }

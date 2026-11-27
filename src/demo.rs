@@ -142,6 +142,11 @@ pub const SCENES: &[(&str, fn(&mut App))] = &[
         s.settings = true;
         s.digest = Some(crate::api::models::DigestPrefs { enabled: true, day_of_week: 5, send_time: "10:00:00".into(), timezone: "Europe/London".into() });
     }),
+    ("update", |s| {
+        sign_in(s);
+        s.updates.phase = crate::app::update::Update::Ready { version: "0.3.0".into() };
+        s.updates.notes = "Turbodoc now updates itself.".into();
+    }),
     ("add-bookmark", |s| {
         sign_in(s);
         s.section = Section::Bookmarks;
