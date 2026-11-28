@@ -1,0 +1,21 @@
+Cargo.lock
+  s_650563a2ad3c0c::t_62d2e19d3df890 5085
+Cargo.toml
+  s_650563a2ad3c0c::t_c7843c72f60709 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7189ccb9682e60058c4ad684e6d3a0b821cf24d7",
+  "prompts": {},
+  "sessions": {
+    "s_650563a2ad3c0c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_650563a2ad3c0c",
+        "model": "unknown"
+      },
+      "human_author": "Nico Botha <nicolaasb@pm.me>"
+    }
+  }
+}
